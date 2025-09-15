@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Election Results</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Live Election Results</h1>
+            <p>Results update in real-time as votes are cast.</p>
+        </header>
+
+        <main>
+            <div id="resultsContainer">
+                <!-- The results will be loaded here by JavaScript -->
+            </div>
+            <p id="resultsMessage"></p>
+            <button onclick="window.location.href='index.html'">Back to Voting</button>
+        </main>
+    </div>
+
+    <!-- Load Supabase and our results JS file -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="realtime-results.js"></script>
+</body>
+</html>
