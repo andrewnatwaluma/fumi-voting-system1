@@ -1,0 +1,103 @@
+/* styles.css */
+body {
+    font-family: sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f4f4f4;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 100%;
+    margin: 0 auto;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+input, button {
+    width: 100%;
+    padding: 12px;
+    margin: 8px 0;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+button {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+button:disabled {
+    background-color: #cccccc;
+}
+
+.message {
+    font-weight: bold;
+    color: #d9534f; /* Red for messages, change color based on success/error in JS */
+}
+
+.voter-details {
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+
+a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.candidate {
+    border: 1px solid #ddd;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+
+.candidate h3 {
+    margin-top: 0;
+    color: #333;
+}
+
+.candidate button {
+    background-color: #2196F3; /* A blue color for vote buttons */
+}
+
+.result-item {
+    border: 2px solid #4CAF50;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 8px;
+    background-color: #f0fff0;
+}
+
+.vote-count {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #2E7D32; /* Dark green */
+    margin: 5px 0;
+}
+
+/* Admin specific styles */
+#superAdminSection {
+    background-color: #fff3cd;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #ffeaa7;
+    margin: 20px 0;
+}
+
+#voterActionSection {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    margin: 10px 0;
+}
