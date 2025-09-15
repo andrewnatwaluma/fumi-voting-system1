@@ -1,9 +1,139 @@
-// admin-dashboard.js - Fixed Super Admin lookup
+// admin-dashboard.js - COMPLETELY FIXED VERSION
 const supabaseUrl = 'https://iaenttkokcxtiauzjtgw.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhZW50dGtva2N4dGlhdXpqdGd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc4NDQ2NDksImV4cCI6MjA3MzQyMDY0OX0.u6ZBX-d_CTNlA94OM7h2JerNpmhuHZxYSXmj0OxRhRI';
 const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
 
-// ... [previous code remains the same until lookupVoter function] ...
+// Check authentication on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const adminRole = localStorage.getItem('adminRole');
+    
+    if (!adminRole) {
+        window.location.href = 'admin-login.html';
+        return;
+    }
+
+    document.getElementById('currentAdmin').textContent = adminRole;
+    
+    if (adminRole === 'superadmin') {
+        document.getElementById('superAdminSection').style.display = 'block';
+    }
+
+    loadAdminStats();
+    loadResults();
+    loadCandidatesForSuperAdmin();
+});
+
+// Load statistics - FIXED
+async function loadAdminStats() {
+    try {
+        const { count: totalVoters, error: votersError } = await supabase
+            .from('voters')
+            .select('*', { count: 'exact', head: true });
+
+        const { count: votedCount, error: votedError } = await supabase
+            .from('voters')
+            .select('*', { count: 'exact', head: true })
+            .eq('has_voted', true);
+
+        const { count: totalVotes, error: votesError } = await supabase
+            .from('votes')
+            .select('*', { count: 'exact', head: true });
+
+        if (votersError || votedError || votesError) {
+            console.error('Stats error:', votersError || votedError || votesError);
+            document.getElementById('adminStats').innerHTML = '<p>Error loading statistics</p>';
+            return;
+        }
+
+        const turnout = totalVoters > 0 ? Math.round((votedCount/totalVoters)*100) : 0;
+        
+        document.getElementById('adminStats').innerHTML = `
+            <p>Total Voters: <strong>${totalVoters || 0}</strong></p>
+            <p>Voters Who Have Voted: <strong>${votedCount || 0}</strong></p>
+            <p>Total Votes Cast: <strong>${totalVotes || 0}</strong></p>
+            <p>Voter Turnout: <strong>${turnout}%</strong></p>
+        `;
+    } catch (error) {
+        console.error('Stats loading failed:', error);
+        document.getElementById('adminStats').innerHTML = '<p>Error loading statistics</p>';
+    }
+}
+
+// Load results - FIXED
+async function loadResults() {
+    try {
+        const { data: results, error } = await supabase
+            .from('votes')
+            .select('candidate_id, candidates (name)');
+
+        if (error) {
+            console.error('Results error:', error);
+            document.getElementById('adminResultsContainer').innerHTML = '<p>Error loading results</p>';
+            return;
+        }
+
+        const voteCount = {};
+        if (results && results.length > 0) {
+            results.forEach(vote => {
+                if (vote.candidates && vote.candidates.name) {
+                    const candidateName = vote.candidates.name;
+                    voteCount[candidateName] = (voteCount[candidateName] || 0) + 1;
+                }
+            });
+        }
+
+        const resultsContainer = document.getElementById('adminResultsContainer');
+        resultsContainer.innerHTML = '';
+
+        if (Object.keys(voteCount).length === 0) {
+            resultsContainer.innerHTML = '<p>No votes have been cast yet.</p>';
+            return;
+        }
+
+        for (const [candidateName, votes] of Object.entries(voteCount)) {
+            const percentage = results.length > 0 ? Math.round((votes/results.length)*100) : 0;
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'result-item';
+            resultDiv.innerHTML = `
+                <h3>${candidateName}</h3>
+                <p class="vote-count">${votes} votes</p>
+                <p>${percentage}% of total</p>
+            `;
+            resultsContainer.appendChild(resultDiv);
+        }
+    } catch (error) {
+        console.error('Results loading failed:', error);
+        document.getElementById('adminResultsContainer').innerHTML = '<p>Error loading results</p>';
+    }
+}
+
+// SUPER ADMIN FUNCTIONS - FIXED
+async function loadCandidatesForSuperAdmin() {
+    try {
+        const { data: candidates, error } = await supabase
+            .from('candidates')
+            .select('*');
+
+        if (error) {
+            console.error('Candidates load error:', error);
+            return;
+        }
+
+        const select = document.getElementById('superAdminCandidateSelect');
+        select.innerHTML = '<option value="">Select candidate</option>';
+        
+        if (candidates && candidates.length > 0) {
+            candidates.forEach(candidate => {
+                const option = document.createElement('option');
+                option.value = candidate.id;
+                option.textContent = candidate.name;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Candidates loading failed:', error);
+    }
+}
 
 async function lookupVoter() {
     const voterName = document.getElementById('voterLookupName').value.trim();
@@ -16,64 +146,71 @@ async function lookupVoter() {
 
     resultDiv.innerHTML = '<p>Searching...</p>';
 
-    // FIXED QUERY: Better voter search with vote information
-    const { data: voter, error } = await supabase
-        .from('voters')
-        .select(`
-            *,
-            votes (
-                candidate_id,
-                candidates (
-                    name
-                )
-            )
-        `)
-        .ilike('name', `%${voterName}%`)  // More flexible search
-        .maybeSingle();
+    try {
+        // First try exact match
+        let { data: voter, error } = await supabase
+            .from('voters')
+            .select('*')
+            .ilike('name', voterName)
+            .maybeSingle();
 
-    if (error) {
+        // If not found, try partial match
+        if (!voter) {
+            const { data: voters, error: searchError } = await supabase
+                .from('voters')
+                .select('*')
+                .ilike('name', `%${voterName}%`)
+                .limit(1);
+            
+            if (searchError) throw searchError;
+            voter = voters && voters.length > 0 ? voters[0] : null;
+        }
+
+        if (error) throw error;
+
+        if (!voter) {
+            resultDiv.innerHTML = '<p class="message">Voter not found</p>';
+            return;
+        }
+
+        // Get vote information separately
+        const { data: votes, error: voteError } = await supabase
+            .from('votes')
+            .select('candidate_id, candidates (name)')
+            .eq('voter_id', voter.id)
+            .maybeSingle();
+
+        if (voteError) console.error('Vote lookup error:', voteError);
+
+        const votedFor = votes && votes.candidates ? votes.candidates.name : 'Not voted yet';
+
+        resultDiv.innerHTML = `
+            <div class="voter-details">
+                <p><strong>Name:</strong> ${voter.name}</p>
+                <p><strong>University:</strong> ${voter.university || 'N/A'}</p>
+                <p><strong>Vote Status:</strong> ${voter.has_voted ? 'Voted' : 'Not voted'}</p>
+                <p><strong>Voted For:</strong> ${votedFor}</p>
+                <button onclick="selectVoter('${voter.id}', '${voter.name.replace(/'/g, "\\'")}', ${voter.has_voted}, '${votedFor.replace(/'/g, "\\'")}')">
+                    Select This Voter
+                </button>
+            </div>
+        `;
+    } catch (error) {
         console.error('Search error:', error);
-        resultDiv.innerHTML = '<p class="message">Error searching voter: ' + error.message + '</p>';
-        return;
+        resultDiv.innerHTML = '<p class="message">Error searching voter</p>';
     }
-
-    if (!voter) {
-        resultDiv.innerHTML = '<p class="message">Voter not found</p>';
-        return;
-    }
-
-    // Get the candidate name if voted
-    let votedFor = 'Not voted yet';
-    let candidateName = 'None';
-    
-    if (voter.votes && voter.votes.length > 0) {
-        votedFor = voter.votes[0].candidates.name;
-        candidateName = votedFor;
-    }
-
-    resultDiv.innerHTML = `
-        <div class="voter-details">
-            <p><strong>Name:</strong> ${voter.name}</p>
-            <p><strong>University:</strong> ${voter.university || 'N/A'}</p>
-            <p><strong>Vote Status:</strong> ${voter.has_voted ? 'Voted' : 'Not voted'}</p>
-            <p><strong>Voted For:</strong> ${votedFor}</p>
-            <button onclick="selectVoter('${voter.id}', '${voter.name}', ${voter.has_voted}, '${candidateName}')">
-                Select This Voter
-            </button>
-        </div>
-    `;
 }
 
 function selectVoter(voterId, voterName, hasVoted, currentCandidate) {
     window.selectedVoterId = voterId;
     document.getElementById('selectedVoterName').textContent = voterName;
-    document.getElementById('voterVoteStatus').textContent = hasVoted ? 'Already voted' : 'Not voted yet';
     
-    // Show current vote if exists
-    if (hasVoted && currentCandidate !== 'None') {
-        document.getElementById('voterVoteStatus').textContent += ` - Voted for: ${currentCandidate}`;
+    let statusText = hasVoted ? 'Already voted' : 'Not voted yet';
+    if (hasVoted && currentCandidate !== 'Not voted yet') {
+        statusText += ` - Voted for: ${currentCandidate}`;
     }
     
+    document.getElementById('voterVoteStatus').textContent = statusText;
     document.getElementById('voterActionSection').style.display = 'block';
 }
 
@@ -94,15 +231,17 @@ async function changeVote() {
     messageElement.textContent = 'Changing vote...';
 
     try {
-        // FIRST: Delete any existing vote for this voter
+        // Delete existing vote if any
         const { error: deleteError } = await supabase
             .from('votes')
             .delete()
             .eq('voter_id', window.selectedVoterId);
 
-        if (deleteError) throw deleteError;
+        if (deleteError && deleteError.code !== '23503') { // Ignore "no rows" error
+            throw deleteError;
+        }
 
-        // SECOND: Insert the new vote
+        // Insert new vote
         const { error: insertError } = await supabase
             .from('votes')
             .insert([{
@@ -112,7 +251,7 @@ async function changeVote() {
 
         if (insertError) throw insertError;
 
-        // THIRD: Update voter status to voted
+        // Update voter status
         const { error: updateError } = await supabase
             .from('voters')
             .update({ has_voted: true })
@@ -123,9 +262,11 @@ async function changeVote() {
         messageElement.textContent = 'Vote successfully changed!';
         messageElement.style.color = 'green';
         
-        // Refresh the page data
-        loadAdminStats();
-        loadResults();
+        // Refresh data
+        setTimeout(() => {
+            loadAdminStats();
+            loadResults();
+        }, 1000);
 
     } catch (error) {
         console.error('Vote change error:', error);
@@ -134,4 +275,14 @@ async function changeVote() {
     }
 }
 
-// ... [rest of the code remains the same] ...
+// LOGOUT FUNCTION - FIXED
+function logout() {
+    localStorage.removeItem('adminRole');
+    window.location.href = 'admin-login.html';
+}
+
+// Make functions globally available
+window.lookupVoter = lookupVoter;
+window.selectVoter = selectVoter;
+window.changeVote = changeVote;
+window.logout = logout;
