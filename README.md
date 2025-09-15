@@ -1,2 +1,2 @@
-# fumi-voting-system1
-Version 4
+# fumi-voting-system
+A secure and reliable web-based voting system for organization elections
