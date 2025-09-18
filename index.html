@@ -3,64 +3,901 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Intern Voting System</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>FUMI Elections - Voting System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(to right, #2c3e50, #4ca1af);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .fumi-logo {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        
+        .fumi-logo img {
+            height: 50px;
+        }
+        
+        .progress-container {
+            background: #f0f0f0;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .progress-steps {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .step {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #777;
+        }
+        
+        .step.active {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .step.completed {
+            background: #2E7D32;
+            color: white;
+        }
+        
+        main {
+            padding: 30px;
+        }
+        
+        section {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        section.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+        
+        input, button {
+            padding: 12px 15px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+            width: 100%;
+        }
+        
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #2E7D32;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .secondary-btn {
+            background: #2196F3;
+        }
+        
+        .secondary-btn:hover {
+            background: #0b7dda;
+        }
+        
+        .message {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .error {
+            background: #ffebee;
+            color: #c62828;
+        }
+        
+        .success {
+            background: #e8f5e9;
+            color: #2E7D32;
+        }
+        
+        .info {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+        
+        .voter-details {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .voter-details p {
+            margin: 10px 0;
+            display: flex;
+        }
+        
+        .voter-details strong {
+            width: 180px;
+            display: inline-block;
+        }
+        
+        .positions-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .position-section {
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            background: #fff;
+            transition: all 0.3s;
+        }
+        
+        .position-section.pending {
+            border-left: 5px solid #FF9800;
+        }
+        
+        .position-section.voted {
+            border-left: 5px solid #4CAF50;
+        }
+        
+        .position-section.skipped {
+            border-left: 5px solid #9E9E9E;
+        }
+        
+        .position-title {
+            color: #1a237e;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px dashed #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .position-status {
+            font-size: 0.9rem;
+            padding: 3px 8px;
+            border-radius: 12px;
+            background: #f5f5f5;
+        }
+        
+        .pending .position-status {
+            background: #fff8e1;
+            color: #f57c00;
+        }
+        
+        .voted .position-status {
+            background: #e8f5e9;
+            color: #2E7D32;
+        }
+        
+        .skipped .position-status {
+            background: #f5f5f5;
+            color: #9E9E9E;
+        }
+        
+        .candidates-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-top: 15px;
+        }
+        
+        .candidate {
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            border-radius: 8px;
+            background: #fff;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .candidate:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border-color: #4CAF50;
+        }
+        
+        .candidate.selected {
+            border-color: #4CAF50;
+            background: #e8f5e9;
+        }
+        
+        .candidate h3 {
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+        }
+        
+        .candidate p {
+            color: #666;
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+        }
+        
+        .candidate button {
+            background: #2196F3;
+            font-size: 0.9rem;
+            padding: 8px 12px;
+        }
+        
+        .candidate button.voted {
+            background: #2E7D32;
+        }
+        
+        .skip-btn {
+            background: #9E9E9E;
+            margin-top: 10px;
+        }
+        
+        .skip-btn:hover {
+            background: #757575;
+        }
+        
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        
+        .review-vote {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .review-item {
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .review-position {
+            font-weight: bold;
+            color: #2c3e50;
+            width: 250px;
+        }
+        
+        .review-candidate {
+            flex-grow: 1;
+        }
+        
+        .review-skipped {
+            color: #9E9E9E;
+            font-style: italic;
+        }
+        
+        .change-vote {
+            color: #2196F3;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        .completion-alert {
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 20px;
+            background: #f5f5f5;
+            color: #666;
+            border-top: 1px solid #ddd;
+        }
+        
+        @media (max-width: 1100px) {
+            .positions-container {
+                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .positions-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .navigation {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .navigation button {
+                width: 100%;
+            }
+            
+            .review-item {
+                flex-direction: column;
+                gap: 5px;
+            }
+            
+            .review-position {
+                width: 100%;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Intern Voting System</h1>
+            <h1>FUMI Elections - Voting System</h1>
+            <p>Federation for Uganda Medical Interns</p>
+            <div class="fumi-logo">
+                <i class="fas fa-hospital-user fa-2x"></i>
+                <span>Here to Serve the Nation</span>
+                <i class="fas fa-stethoscope fa-2x"></i>
+            </div>
         </header>
-
+        
+        <div class="progress-container">
+            <div class="progress-steps">
+                <div class="step completed">1</div>
+                <div class="step completed">2</div>
+                <div class="step active">3</div>
+                <div class="step">4</div>
+            </div>
+            <div class="progress-text">Step 3 of 4: Cast Your Votes</div>
+        </div>
+        
         <main>
             <!-- SECTION 1: Voter Login -->
-            <section id="loginSection">
+            <section id="loginSection" class="active">
                 <h2>Voter Login</h2>
                 <p>Enter your full name as it appears in the registry.</p>
                 <input type="text" id="voterName" placeholder="Your Full Name">
                 <button onclick="handleVoterLogin()">Login</button>
-                <p id="loginMessage" class="message"></p>
-                <p><a href="admin-login.html">Administrator Login</a></p>
+                <p id="loginMessage" class="message info">Please enter your name to begin voting</p>
+                <p><a href="#" style="display: inline-block; text-align: center; width: 100%;">Administrator Login</a></p>
             </section>
 
             <!-- SECTION 2: Voter Details & License Upload -->
-            <section id="voterDetailsSection" style="display: none;">
-                <h2>Welcome, <span id="displayName"></span>!</h2>
+            <section id="voterDetailsSection">
+                <h2>Welcome, <span id="displayName">Medical Intern</span>!</h2>
                 <div class="voter-details">
-                    <p><strong>University:</strong> <span id="displayUniversity"></span></p>
-                    <p><strong>Qualification:</strong> <span id="displayQualification"></span></p>
+                    <p><strong>University:</strong> <span id="displayUniversity">Uganda Medical School</span></p>
+                    <p><strong>Qualification:</strong> <span id="displayQualification">Medical Doctor</span></p>
                     <p><strong>Sex:</strong> <span id="displaySex"></span></p>
-                    <p><strong>Nationality:</strong> <span id="displayNationality"></span></p>
-                    <p><strong>Year of Completion:</strong> <span id="displayCompletionYear"></span></p>
+                    <p><strong>Nationality:</strong> <span id="displayNationality">Ugandan</span></p>
+                    <p><strong>Year of Completion:</strong> <span id="displayCompletionYear">2025</span></p>
                     <p><strong>Internship Center:</strong> <span id="displayInternshipCenter"></span></p>
                 </div>
-
-                <hr>
 
                 <h3>Step 2: Verify Your Identity</h3>
                 <p>Please upload a clear picture of your provisional license.</p>
                 <input type="file" id="licenseUpload" accept="image/*">
                 <button onclick="handleLicenseUpload()">Upload License</button>
-                <p id="uploadMessage" class="message"></p>
+                <p id="uploadMessage" class="message info">Please upload your license for verification</p>
             </section>
 
             <!-- SECTION 3: Voting Interface -->
-            <section id="votingSection" style="display: none;">
+            <section id="votingSection">
                 <h2>Cast Your Vote</h2>
-                <p>Please review the candidates below and select your choice.</p>
-                <div id="candidatesContainer">
-                    <!-- Candidates will be loaded here by JavaScript -->
+                <p>Please select your preferred candidate for each position. You may skip any position you don't wish to vote for.</p>
+                
+                <div class="completion-alert" id="completionAlert">
+                    <i class="fas fa-info-circle"></i>
+                    <span id="completionText">You have voted for 0 of 12 positions</span>
                 </div>
-                <p id="votingMessage" class="message"></p>
-                <button id="showResultsButton" onclick="showResults()" style="display: none; margin-top: 20px;">
-                    View Live Results
-                </button>
+                
+                <div class="positions-container" id="positionsContainer">
+                    <!-- Positions will be dynamically added here -->
+                </div>
+                
+                <div class="navigation">
+                    <button onclick="goBackToVerification()">Back to Verification</button>
+                    <button onclick="reviewVotes()" id="reviewButton">Review Votes</button>
+                </div>
+            </section>
+
+            <!-- SECTION 4: Review Votes -->
+            <section id="reviewSection">
+                <h2>Review Your Votes</h2>
+                <p>Please review your selections before submitting.</p>
+                
+                <div class="review-vote" id="reviewContainer">
+                    <!-- Review items will be dynamically added here -->
+                </div>
+                
+                <p id="votingMessage" class="message info">Please confirm your votes before submitting</p>
+                
+                <div class="navigation">
+                    <button onclick="goBackToVoting()" class="secondary-btn">Modify Votes</button>
+                    <button onclick="castVotes()" id="submitVoteButton">Submit Votes</button>
+                </div>
             </section>
         </main>
+        
+        <footer>
+            <p>FUMI Secure Voting System &copy; 2023 | All votes are confidential and encrypted</p>
+            <p>P. Box 103050, Kampala Uganda | Mobile: +256702692950 | Tel: +256772691562</p>
+        </footer>
     </div>
 
-    <!-- Load Supabase and our main JS file -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js"></script>
+    <script>
+        // Define the 12 positions with candidates from the PDF
+        const positions = [
+            {
+                id: 'president',
+                title: 'PRESIDENT',
+                candidates: [
+                    { id: 'odonjo-joseph', name: 'Dr. ODONGO JOSEPH SOCRATES', description: 'Candidate for President' },
+                    { id: 'mwadha-jacob', name: 'Dr. MWADHA JACOB', description: 'Candidate for President' }
+                ]
+            },
+            {
+                id: 'vice-president',
+                title: 'VICE PRESIDENT',
+                candidates: [
+                    { id: 'katooko-daisy', name: 'Dr. KATOOKO DAISY', description: 'Candidate for Vice President' },
+                    { id: 'atuha-joseph', name: 'Dr. ATUHA JOSEPH', description: 'Candidate for Vice President' }
+                ]
+            },
+            {
+                id: 'secretary-general',
+                title: 'SECRETARY GENERAL',
+                candidates: [
+                    { id: 'ssekyonda-zeddekia', name: 'Dr. SSEKYONDA ZEDDEKIA', description: 'Candidate for Secretary General' },
+                    { id: 'lwesabula-alex', name: 'Dr. LWESABULA ALEX', description: 'Candidate for Secretary General' },
+                    { id: 'okwir-allan', name: 'Dr. OKWIR ALLAN', description: 'Candidate for Secretary General' }
+                ]
+            },
+            {
+                id: 'treasurer-general',
+                title: 'TREASURER GENERAL',
+                candidates: [
+                    { id: 'kibikyo-cosmas', name: 'KIBIKYO COSMAS KANIINA', description: 'Candidate for Treasurer General' },
+                    { id: 'muhereza-living', name: 'MUHEREZA LIVING GODFREY', description: 'Candidate for Treasurer General' }
+                ]
+            },
+            {
+                id: 'welfare-chairperson',
+                title: 'CHAIRPERSON WELFARE',
+                candidates: [
+                    { id: 'babalanda-moses', name: 'BABALANDA MOSES', description: 'Candidate for Chairperson Welfare' },
+                    { id: 'namutebi-florence', name: 'Dr. NAMUTEBI FLORENCE', description: 'Candidate for Chairperson Welfare' }
+                ]
+            },
+            {
+                id: 'ethics-chairperson',
+                title: 'CHAIRPERSON ETHICS AND PROFESSIONALISM',
+                candidates: [
+                    { id: 'kahigiriza-abdallah', name: 'Dr. KAHIGIRIZA ABDALLAHUMAN', description: 'Candidate for Ethics and Professionalism' },
+                    { id: 'kalende-derick', name: 'Dr KALENDE DERICK', description: 'Candidate for Ethics and Professionalism' }
+                ]
+            },
+            {
+                id: 'publications-director',
+                title: 'DIRECTOR OF PUBLICATIONS',
+                candidates: [
+                    { id: 'kahunde-joselyne', name: 'Ms. KAHUNDE JOSELYNE', description: 'Candidate for Director of Publications' }
+                ]
+            },
+            {
+                id: 'doctors-representative',
+                title: 'INTERN DOCTORS\' REPRESENTATIVE',
+                candidates: [
+                    { id: 'kemigisa-desire', name: 'Dr. KEMIGISA DESIRE', description: 'Candidate for Intern Doctors\' Representative' }
+                ]
+            },
+            {
+                id: 'pharmacists-representative',
+                title: 'INTERN PHARMACISTS\' REPRESENTATIVE',
+                candidates: [
+                    { id: 'nakaddu-marie', name: 'Dr. NAKADDU MARIE CURIE', description: 'Candidate for Intern Pharmacists\' Representative' }
+                ]
+            },
+            {
+                id: 'midwives-representative',
+                title: 'INTERN MIDWIVES\' REPRESENTATIVE',
+                candidates: [
+                    { id: 'tugume-martin', name: 'Mr. TUGUME MARTIN', description: 'Candidate for Intern Midwives\' Representative' }
+                ]
+            },
+            {
+                id: 'nurses-representative',
+                title: 'INTERN NURSES\' REPRESENTATIVE',
+                candidates: [
+                    { id: 'muhindo-juan', name: 'Ms. MUHINDO JUAN', description: 'Candidate for Intern Nurses\' Representative' }
+                ]
+            },
+            {
+                id: 'dental-representative',
+                title: 'INTERN DENTAL SURGEONS\' REPRESENTATIVE',
+                candidates: [
+                    { id: 'zzimbe-alfred', name: 'Dr. Alfred William Zzimbe', description: 'Candidate for Intern Dental Surgeons\' Representative' }
+                ]
+            }
+        ];
+
+        // Store selected candidates
+        const selectedCandidates = {};
+        
+        // Initialize selectedCandidates object
+        function initializeSelectedCandidates() {
+            positions.forEach(position => {
+                selectedCandidates[position.id] = null;
+            });
+        }
+        
+        // Simulate voter login
+        function handleVoterLogin() {
+            const voterNameInput = document.getElementById('voterName');
+            const voterName = voterNameInput.value.trim();
+            const loginMessage = document.getElementById('loginMessage');
+            
+            if (!voterName) {
+                loginMessage.textContent = "Please enter your name.";
+                loginMessage.className = "message error";
+                return;
+            }
+            
+            loginMessage.textContent = "Login successful!";
+            loginMessage.className = "message success";
+            
+            // Simulate API call delay
+            setTimeout(() => {
+                document.getElementById('loginSection').classList.remove('active');
+                document.getElementById('voterDetailsSection').classList.add('active');
+                
+                // Update progress indicators
+                document.querySelectorAll('.step')[0].classList.add('completed');
+                document.querySelectorAll('.step')[1].classList.add('active');
+                document.querySelector('.progress-text').textContent = 'Step 2 of 4: Verify Identity';
+            }, 1000);
+        }
+        
+        // Simulate license upload
+        function handleLicenseUpload() {
+            const fileInput = document.getElementById('licenseUpload');
+            const uploadMessage = document.getElementById('uploadMessage');
+            
+            if (fileInput.files.length === 0) {
+                uploadMessage.textContent = "Please select a file first.";
+                uploadMessage.className = "message error";
+                return;
+            }
+            
+            uploadMessage.textContent = "Uploading and verifying license...";
+            uploadMessage.className = "message info";
+            
+            setTimeout(() => {
+                uploadMessage.textContent = "License verified successfully!";
+                uploadMessage.className = "message success";
+                
+                setTimeout(() => {
+                    document.getElementById('voterDetailsSection').classList.remove('active');
+                    document.getElementById('votingSection').classList.add('active');
+                    
+                    // Update progress indicators
+                    document.querySelectorAll('.step')[1].classList.add('completed');
+                    document.querySelectorAll('.step')[2].classList.add('active');
+                    document.querySelector('.progress-text').textContent = 'Step 3 of 4: Cast Your Votes';
+                    
+                    // Render positions
+                    renderPositions();
+                }, 1000);
+            }, 1500);
+        }
+        
+        // Render all positions and candidates
+        function renderPositions() {
+            const container = document.getElementById('positionsContainer');
+            container.innerHTML = '';
+            
+            positions.forEach(position => {
+                const positionSection = document.createElement('div');
+                positionSection.className = 'position-section pending';
+                positionSection.id = `position-${position.id}`;
+                
+                let candidatesHTML = '';
+                position.candidates.forEach(candidate => {
+                    candidatesHTML += `
+                        <div class="candidate">
+                            <h3>${candidate.name}</h3>
+                            <p>${candidate.description}</p>
+                            <button onclick="selectCandidate('${position.id}', '${candidate.id}', this)">SELECT</button>
+                        </div>
+                    `;
+                });
+                
+                positionSection.innerHTML = `
+                    <div class="position-title">
+                        <span>${position.title}</span>
+                        <span class="position-status">Not Voted</span>
+                    </div>
+                    <div class="candidates-container">
+                        ${candidatesHTML}
+                    </div>
+                    <button class="skip-btn" onclick="skipPosition('${position.id}', this)">Skip This Position</button>
+                `;
+                
+                container.appendChild(positionSection);
+            });
+            
+            // Initialize selected candidates object
+            initializeSelectedCandidates();
+        }
+        
+        // Select a candidate for a position
+        function selectCandidate(positionId, candidateId, buttonElement) {
+            // Reset all buttons for this position
+            const positionElement = document.getElementById(`position-${positionId}`);
+            const allButtons = positionElement.querySelectorAll('button');
+            allButtons.forEach(btn => {
+                if (btn.classList.contains('skip-btn')) return;
+                btn.classList.remove('voted');
+                btn.textContent = 'SELECT';
+            });
+            
+            // Mark this candidate as selected
+            buttonElement.classList.add('voted');
+            buttonElement.textContent = 'SELECTED ✓';
+            selectedCandidates[positionId] = candidateId;
+            
+            // Update position status
+            const statusElement = positionElement.querySelector('.position-status');
+            statusElement.textContent = 'Voted';
+            positionElement.classList.remove('pending');
+            positionElement.classList.remove('skipped');
+            positionElement.classList.add('voted');
+            
+            // Update completion count
+            updateCompletionStatus();
+        }
+        
+        // Skip a position
+        function skipPosition(positionId, buttonElement) {
+            const positionElement = document.getElementById(`position-${positionId}`);
+            
+            // Reset any selected candidate
+            const allButtons = positionElement.querySelectorAll('button');
+            allButtons.forEach(btn => {
+                if (btn.classList.contains('skip-btn')) return;
+                btn.classList.remove('voted');
+                btn.textContent = 'SELECT';
+            });
+            
+            // Mark position as skipped
+            selectedCandidates[positionId] = 'skipped';
+            
+            // Update position status
+            const statusElement = positionElement.querySelector('.position-status');
+            statusElement.textContent = 'Skipped';
+            positionElement.classList.remove('pending');
+            positionElement.classList.remove('voted');
+            positionElement.classList.add('skipped');
+            
+            // Update completion count
+            updateCompletionStatus();
+        }
+        
+        // Update completion status text
+        function updateCompletionStatus() {
+            const votedCount = Object.values(selectedCandidates).filter(
+                candidate => candidate !== null && candidate !== 'skipped'
+            ).length;
+            
+            const skippedCount = Object.values(selectedCandidates).filter(
+                candidate => candidate === 'skipped'
+            ).length;
+            
+            const totalCount = positions.length;
+            
+            document.getElementById('completionText').textContent = 
+                `You have voted for ${votedCount} of ${totalCount} positions, skipped ${skippedCount}`;
+        }
+        
+        // Go back to verification step
+        function goBackToVerification() {
+            document.getElementById('votingSection').classList.remove('active');
+            document.getElementById('voterDetailsSection').classList.add('active');
+            
+            // Update progress indicators
+            document.querySelectorAll('.step')[2].classList.remove('active');
+            document.querySelectorAll('.step')[1].classList.add('active');
+            document.querySelector('.progress-text').textContent = 'Step 2 of 4: Verify Identity';
+        }
+        
+        // Review votes before final submission
+        function reviewVotes() {
+            const reviewContainer = document.getElementById('reviewContainer');
+            reviewContainer.innerHTML = '';
+            
+            // Add review items for each position
+            positions.forEach(position => {
+                const candidateId = selectedCandidates[position.id];
+                
+                const reviewItem = document.createElement('div');
+                reviewItem.className = 'review-item';
+                
+                if (candidateId === 'skipped') {
+                    reviewItem.innerHTML = `
+                        <span class="review-position">${position.title}:</span>
+                        <span class="review-candidate review-skipped">You skipped this position</span>
+                        <span class="change-vote" onclick="changeVote('${position.id}')">Change</span>
+                    `;
+                } else if (candidateId) {
+                    const candidate = position.candidates.find(c => c.id === candidateId);
+                    reviewItem.innerHTML = `
+                        <span class="review-position">${position.title}:</span>
+                        <span class="review-candidate">${candidate.name}</span>
+                        <span class="change-vote" onclick="changeVote('${position.id}')">Change</span>
+                    `;
+                } else {
+                    reviewItem.innerHTML = `
+                        <span class="review-position">${position.title}:</span>
+                        <span class="review-candidate review-skipped">Not voted yet</span>
+                        <span class="change-vote" onclick="changeVote('${position.id}')">Vote</span>
+                    `;
+                }
+                
+                reviewContainer.appendChild(reviewItem);
+            });
+            
+            document.getElementById('votingSection').classList.remove('active');
+            document.getElementById('reviewSection').classList.add('active');
+            
+            // Update progress indicators
+            document.querySelectorAll('.step')[2].classList.add('completed');
+            document.querySelectorAll('.step')[3].classList.add('active');
+            document.querySelector('.progress-text').textContent = 'Step 4 of 4: Review and Submit';
+        }
+        
+        // Change vote for a specific position
+        function changeVote(positionId) {
+            document.getElementById('reviewSection').classList.remove('active');
+            document.getElementById('votingSection').classList.add('active');
+            
+            // Update progress indicators
+            document.querySelectorAll('.step')[3].classList.remove('active');
+            document.querySelectorAll('.step')[2].classList.add('active');
+            document.querySelector('.progress-text').textContent = 'Step 3 of 4: Cast Your Votes';
+            
+            // Scroll to the position
+            const positionElement = document.getElementById(`position-${positionId}`);
+            positionElement.scrollIntoView({ behavior: 'smooth' });
+            
+            // Highlight the position
+            positionElement.style.boxShadow = '0 0 0 3px rgba(33, 150, 243, 0.5)';
+            setTimeout(() => {
+                positionElement.style.boxShadow = '';
+            }, 2000);
+        }
+        
+        // Go back to voting to make changes
+        function goBackToVoting() {
+            document.getElementById('reviewSection').classList.remove('active');
+            document.getElementById('votingSection').classList.add('active');
+            
+            // Update progress indicators
+            document.querySelectorAll('.step')[3].classList.remove('active');
+            document.querySelectorAll('.step')[2].classList.add('active');
+            document.querySelector('.progress-text').textContent = 'Step 3 of 4: Cast Your Votes';
+        }
+        
+        // Submit all votes
+        function castVotes() {
+            const votingMessage = document.getElementById('votingMessage');
+            votingMessage.textContent = "Submitting your votes...";
+            votingMessage.className = "message info";
+            
+            // Disable the submit button to prevent double submission
+            document.getElementById('submitVoteButton').disabled = true;
+            
+            // Simulate API call
+            setTimeout(() => {
+                votingMessage.textContent = "Your votes have been successfully submitted!";
+                votingMessage.className = "message success";
+                
+                // Show confirmation and redirect (simulated)
+                setTimeout(() => {
+                    alert("Thank you for voting! Your selections have been recorded.");
+                    // In a real application, this would redirect to a confirmation page
+                    document.querySelector('h2').textContent = "Voting Complete";
+                    document.querySelector('p').textContent = "Thank you for participating in the FUMI election.";
+                    document.getElementById('reviewSection').innerHTML = `
+                        <div style="text-align: center; padding: 40px 0;">
+                            <i class="fas fa-check-circle" style="font-size: 80px; color: #4CAF50;"></i>
+                            <h2>Voting Complete</h2>
+                            <p>Thank you for participating in the FUMI election. Your votes have been recorded.</p>
+                            <button onclick="window.location.reload()">Return to Home</button>
+                        </div>
+                    `;
+                }, 1000);
+            }, 2000);
+        }
+    </script>
 </body>
-</html>
+        </html>
