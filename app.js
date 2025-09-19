@@ -1,12 +1,64 @@
-// app.js - Updated for Multi-Position Voting
+// app.js - Enhanced with all new features
 const supabaseUrl = 'https://iaenttkokcxtiauzjtgw.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhbmFzZSIsInJlZiI6ImlhZW50dGtva2N4dGlhdXpqdGd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc4NDQ2NDksImV4cCI6MjA3MzQyMDY0OX0.u6ZBX-d_CTNlA94OM7h2JerNpmhuHZxYSXmj0OxRhRI';
 const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
 
-// Store selected candidates globally
+// Global variables
 window.selectedCandidates = {};
+window.electionEndTime = null;
+window.hasVotedOnThisDevice = localStorage.getItem('hasVotedOnThisDevice') === 'true';
+window.voterSessionId = localStorage.getItem('voterSessionId') || generateSessionId();
 
-// Handle voter login
+// Generate unique session ID for device tracking
+function generateSessionId() {
+    const sessionId = Math.random().toString(36).substring(2) + Date.now().toString(36);
+    localStorage.setItem('voterSessionId', sessionId);
+    return sessionId;
+}
+
+// Initialize election timer
+async function initializeElectionTimer() {
+    // In a real implementation, this would come from your database
+    // For now, we'll set a default end time (e.g., 24 hours from now)
+    const defaultEndTime = new Date();
+    defaultEndTime.setHours(defaultEndTime.getHours() + 24);
+    
+    window.electionEndTime = defaultEndTime;
+    startCountdown();
+}
+
+// Start countdown timer
+function startCountdown() {
+    const countdownElement = document.getElementById('countdown');
+    const timerContainer = document.getElementById('electionTimer');
+    
+    if (!countdownElement || !window.electionEndTime) return;
+    
+    timerContainer.style.display = 'block';
+    
+    function updateCountdown() {
+        const now = new Date();
+        const distance = window.electionEndTime - now;
+        
+        if (distance < 0) {
+            countdownElement.textContent = 'ELECTION CLOSED';
+            timerContainer.style.background = '#f8d7da';
+            return;
+        }
+        
+        // Calculate time units
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+        
+        countdownElement.textContent = `${hours}h ${minutes}m ${seconds}s`;
+    }
+    
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+}
+
+// Enhanced voter login with vote status check
 async function handleVoterLogin() {
     const voterNameInput = document.getElementById('voterName');
     const voterName = voterNameInput.value.trim();
@@ -15,6 +67,12 @@ async function handleVoterLogin() {
     if (!voterName) {
         loginMessage.textContent = "Please enter your name.";
         loginMessage.className = "message error";
+        return;
+    }
+
+    // Check if already voted on this device
+    if (window.hasVotedOnThisDevice) {
+        showAlreadyVotedNotification();
         return;
     }
 
@@ -32,10 +90,14 @@ async function handleVoterLogin() {
         loginMessage.className = "message error";
         console.error(error);
     } else if (voter) {
+        if (voter.has_voted) {
+            showAlreadyVotedNotification();
+            return;
+        }
+        
         loginMessage.textContent = "Login successful!";
         loginMessage.className = "message success";
 
-        // Simulate API call delay
         setTimeout(() => {
             document.getElementById('loginSection').classList.remove('active');
             document.getElementById('voterDetailsSection').classList.add('active');
@@ -62,71 +124,104 @@ async function handleVoterLogin() {
     }
 }
 
-// Handle license upload
-async function handleLicenseUpload() {
-    const fileInput = document.getElementById('licenseUpload');
-    const uploadMessage = document.getElementById('uploadMessage');
-
-    if (fileInput.files.length === 0) {
-        uploadMessage.textContent = "Please select a file first.";
-        uploadMessage.className = "message error";
-        return;
-    }
-
-    uploadMessage.textContent = "Uploading...";
-    uploadMessage.className = "message info";
-
-    setTimeout(() => {
-        uploadMessage.textContent = "License verified successfully!";
-        uploadMessage.className = "message success";
-
-        setTimeout(() => {
-            document.getElementById('voterDetailsSection').classList.remove('active');
-            document.getElementById('votingSection').classList.add('active');
-            
-            // Update progress indicators
-            document.querySelectorAll('.step')[1].classList.add('completed');
-            document.querySelectorAll('.step')[2].classList.add('active');
-            document.querySelector('.progress-text').textContent = 'Step 3 of 4: Cast Your Votes';
-            
-            loadCandidates();
-        }, 1000);
-    }, 1500);
+// Show notification for already voted voters
+async function showAlreadyVotedNotification() {
+    const loginMessage = document.getElementById('loginMessage');
+    loginMessage.textContent = "This voter has already voted. Showing current results...";
+    loginMessage.className = "message error";
+    
+    // Show results in percentages
+    setTimeout(async () => {
+        await showResultsInPercentages();
+    }, 2000);
 }
 
-// Load candidates by position
+// Show results in percentages
+async function showResultsInPercentages() {
+    const { data: results, error } = await supabase
+        .from('election_results')
+        .select('*');
+    
+    if (error) {
+        console.error("Error loading results:", error);
+        return;
+    }
+    
+    const loginSection = document.getElementById('loginSection');
+    loginSection.innerHTML = `
+        <h2>Election Results (Live)</h2>
+        <p>This voter has already participated in the election.</p>
+        <div id="resultsContainer" style="max-height: 400px; overflow-y: auto; margin: 20px 0;">
+            ${generateResultsHtml(results, true)}
+        </div>
+        <button onclick="window.location.reload()">Return to Login</button>
+    `;
+}
+
+// Generate HTML for results (with percentage option)
+function generateResultsHtml(results, showPercentagesOnly = false) {
+    const groupedByPosition = {};
+    
+    results.forEach(result => {
+        if (!groupedByPosition[result.position]) {
+            groupedByPosition[result.position] = [];
+        }
+        groupedByPosition[result.position].push(result);
+    });
+    
+    let html = '';
+    
+    for (const [position, candidates] of Object.entries(groupedByPosition)) {
+        html += `<div class="position-results" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+            <h3 style="margin-bottom: 15px; color: #2c3e50;">${position}</h3>`;
+        
+        candidates.sort((a, b) => b.votes - a.votes).forEach(candidate => {
+            const displayText = showPercentagesOnly 
+                ? `${candidate.percentage}%` 
+                : `${candidate.votes} votes (${candidate.percentage}%)`;
+            
+            html += `<div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 8px; background: white; border-radius: 4px;">
+                <span>${candidate.candidate}</span>
+                <strong>${displayText}</strong>
+            </div>`;
+        });
+        
+        html += `</div>`;
+    }
+    
+    return html;
+}
+
+// Remove "Back to Verification" button - Modified loadCandidates function
 async function loadCandidates() {
-    // First get all positions from candidates
+    // First get all positions
     const { data: positions, error: positionsError } = await supabase
-        .from('candidates')
-        .select('position')
-        .order('position');
+        .from('positions')
+        .select('*')
+        .order('title');
 
     if (positionsError) {
         console.error("Error loading positions:", positionsError);
         return;
     }
-
-    // Get unique positions
-    const uniquePositions = [...new Set(positions.map(p => p.position))];
     
     const candidatesContainer = document.getElementById('positionsContainer');
     candidatesContainer.innerHTML = '';
 
     // For each position, load its candidates
-    for (const position of uniquePositions) {
+    for (const position of positions) {
         const { data: candidates, error: candidatesError } = await supabase
             .from('candidates')
             .select('*')
-            .eq('position', position)
+            .eq('position_id', position.id)
             .order('name');
 
         if (candidatesError) {
-            console.error(`Error loading candidates for ${position}:`, candidatesError);
+            console.error(`Error loading candidates for ${position.title}:`, candidatesError);
             continue;
         }
 
-        const positionId = position.replace(/\s+/g, '-').toLowerCase();
+        const positionId = position.id;
         const positionDiv = document.createElement('div');
         positionDiv.className = 'position-section pending';
         positionDiv.id = `position-${positionId}`;
@@ -144,17 +239,15 @@ async function loadCandidates() {
             `;
         });
         
+        // REMOVED the skip button from the UI but kept the functionality
         positionDiv.innerHTML = `
             <div class="position-title">
-                <span>${position}</span>
+                <span>${position.title}</span>
                 <span class="position-status">Not Voted</span>
             </div>
             <div class="candidates-container">
                 ${candidatesHTML}
             </div>
-            <button class="skip-btn" onclick="skipPosition('${positionId}', this)">
-                Skip This Position
-            </button>
         `;
         
         candidatesContainer.appendChild(positionDiv);
@@ -165,188 +258,20 @@ async function loadCandidates() {
     
     // Update completion status
     updateCompletionStatus();
-}
-
-// Select a candidate for a position
-function selectCandidate(positionId, candidateId, buttonElement) {
-    // Reset all buttons for this position
-    const positionElement = document.getElementById(`position-${positionId}`);
-    const allButtons = positionElement.querySelectorAll('button');
-    allButtons.forEach(btn => {
-        if (btn.classList.contains('skip-btn')) return;
-        btn.classList.remove('voted');
-        btn.textContent = 'SELECT';
-    });
-
-    // Mark this candidate as selected
-    buttonElement.classList.add('voted');
-    buttonElement.textContent = 'SELECTED ✓';
-    window.selectedCandidates[positionId] = candidateId;
-
-    // Update position status
-    const statusElement = positionElement.querySelector('.position-status');
-    statusElement.textContent = 'Voted';
-    positionElement.classList.remove('pending');
-    positionElement.classList.remove('skipped');
-    positionElement.classList.add('voted');
-
-    // Update completion count
-    updateCompletionStatus();
-}
-
-// Skip a position
-function skipPosition(positionId, buttonElement) {
-    const positionElement = document.getElementById(`position-${positionId}`);
     
-    // Reset any selected candidate
-    const allButtons = positionElement.querySelectorAll('button');
-    allButtons.forEach(btn => {
-        if (btn.classList.contains('skip-btn')) return;
-        btn.classList.remove('voted');
-        btn.textContent = 'SELECT';
-    });
+    // REMOVED the "Back to Verification" button from navigation
+    document.querySelector('.navigation').innerHTML = `
+        <button onclick="reviewVotes()" id="reviewButton">Review Votes</button>
+    `;
+}
 
-    // Mark position as skipped
+// Modified skip function (now automatic if not voted)
+function skipPosition(positionId) {
     window.selectedCandidates[positionId] = 'skipped';
-
-    // Update position status
-    const statusElement = positionElement.querySelector('.position-status');
-    statusElement.textContent = 'Skipped';
-    positionElement.classList.remove('pending');
-    positionElement.classList.remove('voted');
-    positionElement.classList.add('skipped');
-
-    // Update completion count
     updateCompletionStatus();
 }
 
-// Update completion status
-function updateCompletionStatus() {
-    const votedCount = Object.values(window.selectedCandidates).filter(
-        candidate => candidate !== null && candidate !== 'skipped'
-    ).length;
-    
-    const skippedCount = Object.values(window.selectedCandidates).filter(
-        candidate => candidate === 'skipped'
-    ).length;
-    
-    const totalCount = Object.keys(window.selectedCandidates).length;
-    
-    if (totalCount > 0) {
-        document.getElementById('completionText').textContent = 
-            `You have voted for ${votedCount} of ${totalCount} positions, skipped ${skippedCount}`;
-    }
-}
-
-// Review votes before submission
-function reviewVotes() {
-    const reviewContainer = document.getElementById('reviewContainer');
-    reviewContainer.innerHTML = '';
-    
-    let hasVotes = false;
-    
-    // Add review items for each position
-    for (const [positionId, candidateId] of Object.entries(window.selectedCandidates)) {
-        const positionElement = document.getElementById(`position-${positionId}`);
-        if (!positionElement) continue;
-        
-        const positionTitle = positionElement.querySelector('.position-title span').textContent;
-        
-        const reviewItem = document.createElement('div');
-        reviewItem.className = 'review-item';
-        
-        if (candidateId === 'skipped') {
-            reviewItem.innerHTML = `
-                <span class="review-position">${positionTitle}:</span>
-                <span class="review-candidate review-skipped">You skipped this position</span>
-                <span class="change-vote" onclick="changeVote('${positionId}')">Change</span>
-            `;
-        } else if (candidateId) {
-            const candidateElement = document.querySelector(`button[onclick*="${candidateId}"]`);
-            if (candidateElement) {
-                const candidateName = candidateElement.closest('.candidate').querySelector('h3').textContent;
-                
-                reviewItem.innerHTML = `
-                    <span class="review-position">${positionTitle}:</span>
-                    <span class="review-candidate">${candidateName}</span>
-                    <span class="change-vote" onclick="changeVote('${positionId}')">Change</span>
-                `;
-                hasVotes = true;
-            }
-        } else {
-            reviewItem.innerHTML = `
-                <span class="review-position">${positionTitle}:</span>
-                <span class="review-candidate review-skipped">Not voted yet</span>
-                <span class="change-vote" onclick="changeVote('${positionId}')">Vote</span>
-            `;
-        }
-        
-        reviewContainer.appendChild(reviewItem);
-    }
-    
-    // Show warning if no votes were cast
-    if (!hasVotes) {
-        const warningItem = document.createElement('div');
-        warningItem.className = 'message info';
-        warningItem.textContent = 'You have not voted for any position. You can still submit if you want to abstain.';
-        reviewContainer.prepend(warningItem);
-    }
-    
-    document.getElementById('votingSection').classList.remove('active');
-    document.getElementById('reviewSection').classList.add('active');
-    
-    // Update progress indicators
-    document.querySelectorAll('.step')[2].classList.add('completed');
-    document.querySelectorAll('.step')[3].classList.add('active');
-    document.querySelector('.progress-text').textContent = 'Step 4 of 4: Review and Submit';
-}
-
-// Change vote for a position
-function changeVote(positionId) {
-    document.getElementById('reviewSection').classList.remove('active');
-    document.getElementById('votingSection').classList.add('active');
-    
-    // Update progress indicators
-    document.querySelectorAll('.step')[3].classList.remove('active');
-    document.querySelectorAll('.step')[2].classList.add('active');
-    document.querySelector('.progress-text').textContent = 'Step 3 of 4: Cast Your Votes';
-    
-    // Scroll to the position
-    const positionElement = document.getElementById(`position-${positionId}`);
-    if (positionElement) {
-        positionElement.scrollIntoView({ behavior: 'smooth' });
-        
-        // Highlight the position
-        positionElement.style.boxShadow = '0 0 0 3px rgba(33, 150, 243, 0.5)';
-        setTimeout(() => {
-            positionElement.style.boxShadow = '';
-        }, 2000);
-    }
-}
-
-// Go back to verification
-function goBackToVerification() {
-    document.getElementById('votingSection').classList.remove('active');
-    document.getElementById('voterDetailsSection').classList.add('active');
-    
-    // Update progress indicators
-    document.querySelectorAll('.step')[2].classList.remove('active');
-    document.querySelectorAll('.step')[1].classList.add('active');
-    document.querySelector('.progress-text').textContent = 'Step 2 of 4: Verify Identity';
-}
-
-// Go back to voting
-function goBackToVoting() {
-    document.getElementById('reviewSection').classList.remove('active');
-    document.getElementById('votingSection').classList.add('active');
-    
-    // Update progress indicators
-    document.querySelectorAll('.step')[3].classList.remove('active');
-    document.querySelectorAll('.step')[2].classList.add('active');
-    document.querySelector('.progress-text').textContent = 'Step 3 of 4: Cast Your Votes';
-}
-
-// Cast all votes
+// Enhanced vote casting with device tracking
 async function castVotes() {
     const votingMessage = document.getElementById('votingMessage');
     votingMessage.textContent = "Submitting your votes...";
@@ -354,6 +279,13 @@ async function castVotes() {
     
     if (window.currentVoterHasVoted) {
         votingMessage.textContent = "You have already voted. You cannot vote again.";
+        votingMessage.className = "message error";
+        return;
+    }
+    
+    // Check if already voted on this device
+    if (window.hasVotedOnThisDevice) {
+        votingMessage.textContent = "This device has already been used to vote.";
         votingMessage.className = "message error";
         return;
     }
@@ -372,19 +304,14 @@ async function castVotes() {
                     .from('votes')
                     .insert([{ 
                         voter_id: window.currentVoterId, 
-                        candidate_id: candidateId
+                        candidate_id: candidateId,
+                        position_id: positionId,
+                        session_id: window.voterSessionId
                     }]);
                 
                 if (error) {
-                    if (error.code === '23505') { 
-                        votingMessage.textContent = "Our records show you have already voted. You cannot vote again.";
-                        votingMessage.className = "message error";
-                        hasErrors = true;
-                        break;
-                    } else {
-                        console.error("Vote error:", error);
-                        hasErrors = true;
-                    }
+                    console.error("Vote error:", error);
+                    hasErrors = true;
                 } else {
                     votesCast++;
                 }
@@ -392,6 +319,9 @@ async function castVotes() {
                 console.error("Error casting vote:", error);
                 hasErrors = true;
             }
+        } else {
+            // Automatically skip positions that weren't voted on
+            window.selectedCandidates[positionId] = 'skipped';
         }
     }
     
@@ -402,7 +332,7 @@ async function castVotes() {
         return;
     }
     
-    // Update voter status
+    // Update voter status and mark device as used
     try {
         const { error } = await supabase
             .from('voters')
@@ -411,6 +341,10 @@ async function castVotes() {
             
         if (error) {
             console.error("Error updating voter status:", error);
+        } else {
+            // Mark this device as used for voting
+            localStorage.setItem('hasVotedOnThisDevice', 'true');
+            window.hasVotedOnThisDevice = true;
         }
     } catch (error) {
         console.error("Error updating voter status:", error);
@@ -418,36 +352,64 @@ async function castVotes() {
     
     votingMessage.textContent = `Your votes have been cast successfully! ${votesCast} vote(s) recorded.`;
     votingMessage.className = "message success";
+    window.currentVoterHasVoted = true;
     
-    // Show success message
+    // Show success message with option to view results
     setTimeout(() => {
-        document.querySelector('h2').textContent = "Voting Complete";
-        document.querySelector('p').textContent = "Thank you for participating in the FUMI election.";
         document.getElementById('reviewSection').innerHTML = `
             <div style="text-align: center; padding: 40px 0;">
                 <i class="fas fa-check-circle" style="font-size: 80px; color: #4CAF50;"></i>
                 <h2>Voting Complete</h2>
                 <p>Thank you for participating in the FUMI election. Your votes have been recorded.</p>
-                <button onclick="window.location.reload()">Return to Home</button>
+                <div style="margin: 20px 0;">
+                    <button onclick="viewResultsAsVoter()" style="background: #2196F3; margin: 5px;">
+                        View Current Results
+                    </button>
+                    <button onclick="window.location.reload()" style="margin: 5px;">
+                        Return to Home
+                    </button>
+                </div>
             </div>
         `;
     }, 2000);
 }
 
-// Show results
-function showResults() {
-    window.location.href = 'results.html';
+// View results as voter (percentages only)
+async function viewResultsAsVoter() {
+    const { data: results, error } = await supabase
+        .from('election_results')
+        .select('*');
+    
+    if (error) {
+        console.error("Error loading results:", error);
+        alert("Error loading results. Please try again later.");
+        return;
+    }
+    
+    document.getElementById('reviewSection').innerHTML = `
+        <h2>Current Election Results</h2>
+        <p>Results are shown in percentages. Final counts will be available after election closure.</p>
+        <div id="voterResultsContainer" style="max-height: 500px; overflow-y: auto; margin: 20px 0;">
+            ${generateResultsHtml(results, true)}
+        </div>
+        <button onclick="window.location.reload()">Return to Home</button>
+    `;
 }
 
-// Make functions globally available
-window.handleVoterLogin = handleVoterLogin;
-window.handleLicenseUpload = handleLicenseUpload;
-window.loadCandidates = loadCandidates;
-window.selectCandidate = selectCandidate;
-window.skipPosition = skipPosition;
-window.reviewVotes = reviewVotes;
-window.changeVote = changeVote;
-window.goBackToVerification = goBackToVerification;
-window.goBackToVoting = goBackToVoting;
-window.castVotes = castVotes;
-window.showResults = showResults;
+// Initialize the application
+document.addEventListener('DOMContentLoaded', function() {
+    initializeElectionTimer();
+    
+    // Check if already voted on this device
+    if (window.hasVotedOnThisDevice) {
+        document.getElementById('loginSection').innerHTML += `
+            <div class="message info" style="margin-top: 20px;">
+                <i class="fas fa-info-circle"></i>
+                This device has already been used to vote. Please use a different device if you need to vote again.
+            </div>
+        `;
+    }
+});
+
+// Keep the rest of your existing functions (selectCandidate, updateCompletionStatus, reviewVotes, etc.)
+// [Include all the other functions from your previous app.js here]
