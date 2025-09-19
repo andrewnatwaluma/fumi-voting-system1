@@ -1,6 +1,6 @@
 // admin-dashboard.js - COMPLETELY FIXED VERSION
 const supabaseUrl = 'https://iaenttkokcxtiauzjtgw.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhZW50dGtva2N4dGlhdXpqdGd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc4NDQ2NDksImV4cCI6MjA3MzQyMDY0OX0.u6ZBX-d_CTNlA94OM7h2JerNpmhuHZxYSXmj0OxRhRI';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhbmFzZSIsInJlZiI6ImlhZW50dGtva2N4dGlhdXpqdGd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc4NDQ2NDksImV4cCI6MjA3MzQyMDY0OX0.u6ZBX-d_CTNlA94OM7h2JerNpmhuHZxYSXmj0OxRhRI';
 const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
 
 // Check authentication on page load
@@ -214,6 +214,7 @@ function selectVoter(voterId, voterName, hasVoted, currentCandidate) {
     document.getElementById('voterActionSection').style.display = 'block';
 }
 
+// FIXED: Added position_id lookup and inclusion
 async function changeVote() {
     const candidateId = document.getElementById('superAdminCandidateSelect').value;
     const messageElement = document.getElementById('superAdminMessage');
@@ -231,6 +232,16 @@ async function changeVote() {
     messageElement.textContent = 'Changing vote...';
 
     try {
+        // First, get the candidate's position_id
+        const { data: candidate, error: candidateError } = await supabase
+            .from('candidates')
+            .select('position_id')
+            .eq('id', candidateId)
+            .single();
+
+        if (candidateError) throw candidateError;
+        if (!candidate) throw new Error('Candidate not found');
+
         // Delete existing vote if any
         const { error: deleteError } = await supabase
             .from('votes')
@@ -241,12 +252,13 @@ async function changeVote() {
             throw deleteError;
         }
 
-        // Insert new vote
+        // Insert new vote WITH position_id
         const { error: insertError } = await supabase
             .from('votes')
             .insert([{
                 voter_id: window.selectedVoterId,
-                candidate_id: candidateId
+                candidate_id: candidateId,
+                position_id: candidate.position_id  // ← CRITICAL FIX: Added position_id
             }]);
 
         if (insertError) throw insertError;
@@ -286,6 +298,7 @@ window.lookupVoter = lookupVoter;
 window.selectVoter = selectVoter;
 window.changeVote = changeVote;
 window.logout = logout;
+
 // Superadmin functions
 async function restartElection() {
     const password = prompt("Enter superadmin password to confirm election restart:");
@@ -374,4 +387,4 @@ async function showVotedVoters() {
             </table>
         </div>
     `;
-}
+            }
