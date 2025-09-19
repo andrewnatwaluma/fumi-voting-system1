@@ -411,5 +411,205 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Keep the rest of your existing functions (selectCandidate, updateCompletionStatus, reviewVotes, etc.)
-// [Include all the other functions from your previous app.js here]
+// ===== MISSING FUNCTIONS ADDED BELOW =====
+
+// Missing function: selectCandidate
+function selectCandidate(positionId, candidateId, buttonElement) {
+    // Deselect any previously selected candidate in this position
+    const positionDiv = document.getElementById(`position-${positionId}`);
+    const candidates = positionDiv.querySelectorAll('.candidate');
+    candidates.forEach(candidate => {
+        candidate.classList.remove('selected');
+        const btn = candidate.querySelector('button');
+        if (btn) {
+            btn.textContent = 'SELECT';
+            btn.classList.remove('voted');
+        }
+    });
+    
+    // Select the new candidate
+    if (buttonElement) {
+        buttonElement.textContent = 'SELECTED ✓';
+        buttonElement.classList.add('voted');
+        buttonElement.closest('.candidate').classList.add('selected');
+    }
+    
+    // Store the selection
+    window.selectedCandidates[positionId] = candidateId;
+    
+    // Update completion status
+    updateCompletionStatus();
+}
+
+// Missing function: updateCompletionStatus
+function updateCompletionStatus() {
+    const totalPositions = Object.keys(window.selectedCandidates).length;
+    const votedPositions = Object.values(window.selectedCandidates).filter(
+        candidateId => candidateId && candidateId !== 'skipped'
+    ).length;
+    
+    const completionAlert = document.getElementById('completionAlert');
+    const completionText = document.getElementById('completionText');
+    const reviewButton = document.getElementById('reviewButton');
+    
+    if (completionAlert && completionText) {
+        completionText.textContent = `You have voted for ${votedPositions} of ${totalPositions} positions`;
+    }
+    
+    if (reviewButton) {
+        reviewButton.disabled = votedPositions === 0;
+        reviewButton.textContent = votedPositions > 0 ? 
+            `Review Votes (${votedPositions}/${totalPositions})` : 
+            'Review Votes';
+    }
+    
+    // Update position status indicators
+    for (const [positionId, candidateId] of Object.entries(window.selectedCandidates)) {
+        const positionDiv = document.getElementById(`position-${positionId}`);
+        if (positionDiv) {
+            const statusElement = positionDiv.querySelector('.position-status');
+            if (statusElement) {
+                if (candidateId && candidateId !== 'skipped') {
+                    positionDiv.className = 'position-section voted';
+                    statusElement.textContent = 'Voted';
+                } else if (candidateId === 'skipped') {
+                    positionDiv.className = 'position-section skipped';
+                    statusElement.textContent = 'Skipped';
+                } else {
+                    positionDiv.className = 'position-section pending';
+                    statusElement.textContent = 'Not Voted';
+                }
+            }
+        }
+    }
+}
+
+// Missing function: reviewVotes
+function reviewVotes() {
+    const reviewContainer = document.getElementById('reviewContainer');
+    if (!reviewContainer) return;
+    
+    let reviewHTML = '';
+    
+    for (const [positionId, candidateId] of Object.entries(window.selectedCandidates)) {
+        const positionDiv = document.getElementById(`position-${positionId}`);
+        if (positionDiv) {
+            const positionTitle = positionDiv.querySelector('.position-title span').textContent;
+            
+            if (candidateId && candidateId !== 'skipped') {
+                const candidateDiv = positionDiv.querySelector(`.candidate button[onclick*="${candidateId}"]`);
+                if (candidateDiv) {
+                    const candidateName = candidateDiv.closest('.candidate').querySelector('h3').textContent;
+                    reviewHTML += `
+                        <div class="review-item">
+                            <span class="review-position">${positionTitle}</span>
+                            <span class="review-candidate">${candidateName}</span>
+                            <span class="change-vote" onclick="changeVoteForPosition('${positionId}')">Change</span>
+                        </div>
+                    `;
+                }
+            } else if (candidateId === 'skipped') {
+                reviewHTML += `
+                    <div class="review-item">
+                        <span class="review-position">${positionTitle}</span>
+                        <span class="review-skipped">Skipped</span>
+                        <span class="change-vote" onclick="changeVoteForPosition('${positionId}')">Change</span>
+                    </div>
+                `;
+            } else {
+                reviewHTML += `
+                    <div class="review-item">
+                        <span class="review-position">${positionTitle}</span>
+                        <span class="review-skipped">Not voted yet</span>
+                        <span class="change-vote" onclick="changeVoteForPosition('${positionId}')">Change</span>
+                    </div>
+                `;
+            }
+        }
+    }
+    
+    reviewContainer.innerHTML = reviewHTML;
+    
+    // Switch to review section
+    document.getElementById('votingSection').classList.remove('active');
+    document.getElementById('reviewSection').classList.add('active');
+    
+    // Update progress indicators
+    document.querySelectorAll('.step')[2].classList.add('completed');
+    document.querySelectorAll('.step')[3].classList.add('active');
+    document.querySelector('.progress-text').textContent = 'Step 4 of 4: Review and Submit';
+}
+
+// Missing function: changeVoteForPosition
+function changeVoteForPosition(positionId) {
+    // Clear the selection for this position
+    window.selectedCandidates[positionId] = null;
+    
+    // Update UI
+    const positionDiv = document.getElementById(`position-${positionId}`);
+    if (positionDiv) {
+        positionDiv.className = 'position-section pending';
+        const statusElement = positionDiv.querySelector('.position-status');
+        if (statusElement) {
+            statusElement.textContent = 'Not Voted';
+        }
+        
+        // Deselect all candidates in this position
+        const candidates = positionDiv.querySelectorAll('.candidate');
+        candidates.forEach(candidate => {
+            candidate.classList.remove('selected');
+            const btn = candidate.querySelector('button');
+            if (btn) {
+                btn.textContent = 'SELECT';
+                btn.classList.remove('voted');
+            }
+        });
+    }
+    
+    // Update completion status
+    updateCompletionStatus();
+    
+    // Go back to voting section
+    document.getElementById('reviewSection').classList.remove('active');
+    document.getElementById('votingSection').classList.add('active');
+    
+    // Scroll to the position
+    setTimeout(() => {
+        positionDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+}
+
+// Missing function: goBackToVoting
+function goBackToVoting() {
+    document.getElementById('reviewSection').classList.remove('active');
+    document.getElementById('votingSection').classList.add('active');
+}
+
+// Missing function: handleLicenseUpload
+function handleLicenseUpload() {
+    const uploadMessage = document.getElementById('uploadMessage');
+    const fileInput = document.getElementById('licenseUpload');
+    
+    if (!fileInput.files || fileInput.files.length === 0) {
+        uploadMessage.textContent = "Please select a license file to upload.";
+        uploadMessage.className = "message error";
+        return;
+    }
+    
+    uploadMessage.textContent = "License uploaded successfully!";
+    uploadMessage.className = "message success";
+    
+    // Proceed to voting section after a delay
+    setTimeout(() => {
+        document.getElementById('voterDetailsSection').classList.remove('active');
+        document.getElementById('votingSection').classList.add('active');
+        
+        // Load candidates
+        loadCandidates();
+        
+        // Update progress indicators
+        document.querySelectorAll('.step')[1].classList.add('completed');
+        document.querySelectorAll('.step')[2].classList.add('active');
+        document.querySelector('.progress-text').textContent = 'Step 3 of 4: Cast Your Votes';
+    }, 1500);
+}
