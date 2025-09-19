@@ -286,3 +286,92 @@ window.lookupVoter = lookupVoter;
 window.selectVoter = selectVoter;
 window.changeVote = changeVote;
 window.logout = logout;
+// Superadmin functions
+async function restartElection() {
+    const password = prompt("Enter superadmin password to confirm election restart:");
+    
+    if (password !== "superadmin_password") { // Replace with actual password check
+        alert("Invalid password. Election restart cancelled.");
+        return;
+    }
+    
+    if (!confirm("WARNING: This will delete ALL votes and reset the election. Are you absolutely sure?")) {
+        return;
+    }
+    
+    // Delete all votes
+    const { error } = await supabase
+        .from('votes')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all votes
+    
+    if (error) {
+        console.error("Error deleting votes:", error);
+        alert("Error restarting election.");
+        return;
+    }
+    
+    // Reset all voters
+    const { error: voterError } = await supabase
+        .from('voters')
+        .update({ has_voted: false })
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+    
+    if (voterError) {
+        console.error("Error resetting voters:", voterError);
+        alert("Error resetting voters.");
+        return;
+    }
+    
+    // Clear device voting flags
+    localStorage.removeItem('hasVotedOnThisDevice');
+    
+    alert("Election has been successfully restarted. All votes have been cleared.");
+    location.reload();
+}
+
+// Export results to PDF
+async function exportResultsPDF() {
+    // This would typically use a PDF generation library
+    // For now, we'll show a message
+    alert("PDF export feature would be implemented here. This would generate a graphical report of election results.");
+}
+
+// View voted voters list
+async function showVotedVoters() {
+    const { data: voters, error } = await supabase
+        .from('voted_voters')
+        .select('*')
+        .order('voted_at', { ascending: false });
+    
+    if (error) {
+        console.error("Error loading voted voters:", error);
+        return;
+    }
+    
+    // Display the list of voted voters
+    const container = document.getElementById('superAdminContent');
+    container.innerHTML = `
+        <h3>Voters Who Have Voted (${voters.length})</h3>
+        <div style="max-height: 400px; overflow-y: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #f8f9fa;">
+                        <th style="padding: 10px; border: 1px solid #ddd;">Name</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">University</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">Voted At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${voters.map(voter => `
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${voter.name}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${voter.university}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${new Date(voter.voted_at).toLocaleString()}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
