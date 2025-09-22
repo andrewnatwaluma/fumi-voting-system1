@@ -60,11 +60,20 @@ async function loadAdminStats() {
 }
 
 // Load results - FIXED
+// admin-dashboard.js - FIXED for multi-position results
+// ... (keep the existing code but replace the loadResults function)
+
+// Load results for multiple positions - FIXED
 async function loadResults() {
     try {
+        // Get results grouped by position
         const { data: results, error } = await supabase
             .from('votes')
-            .select('candidate_id, candidates (name)');
+            .select(`
+                candidate_id, 
+                candidates (name, position_id),
+                positions (title)
+            `);
 
         if (error) {
             console.error('Results error:', error);
@@ -72,12 +81,20 @@ async function loadResults() {
             return;
         }
 
-        const voteCount = {};
+        // Group results by position
+        const resultsByPosition = {};
         if (results && results.length > 0) {
             results.forEach(vote => {
-                if (vote.candidates && vote.candidates.name) {
+                if (vote.candidates && vote.positions) {
+                    const positionTitle = vote.positions.title;
                     const candidateName = vote.candidates.name;
-                    voteCount[candidateName] = (voteCount[candidateName] || 0) + 1;
+                    
+                    if (!resultsByPosition[positionTitle]) {
+                        resultsByPosition[positionTitle] = {};
+                    }
+                    
+                    resultsByPosition[positionTitle][candidateName] = 
+                        (resultsByPosition[positionTitle][candidateName] || 0) + 1;
                 }
             });
         }
@@ -85,21 +102,30 @@ async function loadResults() {
         const resultsContainer = document.getElementById('adminResultsContainer');
         resultsContainer.innerHTML = '';
 
-        if (Object.keys(voteCount).length === 0) {
+        if (Object.keys(resultsByPosition).length === 0) {
             resultsContainer.innerHTML = '<p>No votes have been cast yet.</p>';
             return;
         }
 
-        for (const [candidateName, votes] of Object.entries(voteCount)) {
-            const percentage = results.length > 0 ? Math.round((votes/results.length)*100) : 0;
-            const resultDiv = document.createElement('div');
-            resultDiv.className = 'result-item';
-            resultDiv.innerHTML = `
-                <h3>${candidateName}</h3>
-                <p class="vote-count">${votes} votes</p>
-                <p>${percentage}% of total</p>
-            `;
-            resultsContainer.appendChild(resultDiv);
+        // Display results for each position
+        for (const [positionTitle, candidates] of Object.entries(resultsByPosition)) {
+            const positionDiv = document.createElement('div');
+            positionDiv.className = 'position-results';
+            positionDiv.innerHTML = `<h3>${positionTitle}</h3>`;
+            
+            const totalVotes = Object.values(candidates).reduce((sum, votes) => sum + votes, 0);
+            
+            for (const [candidateName, votes] of Object.entries(candidates)) {
+                const percentage = totalVotes > 0 ? Math.round((votes/totalVotes)*100) : 0;
+                positionDiv.innerHTML += `
+                    <div class="candidate-result">
+                        <span>${candidateName}</span>
+                        <strong>${votes} votes (${percentage}%)</strong>
+                    </div>
+                `;
+            }
+            
+            resultsContainer.appendChild(positionDiv);
         }
     } catch (error) {
         console.error('Results loading failed:', error);
