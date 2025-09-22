@@ -1,4 +1,4 @@
-// admin-dashboard.js - COMPLETELY FIXED VERSION
+// admin-dashboard.js - COMPLETELY FIXED VERSION WITH MULTI-POSITION RESULTS
 const supabaseUrl = 'https://iaenttkokcxtiauzjtgw.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhbmFzZSIsInJlZiI6ImlhZW50dGtva2N4dGlhdXpqdGd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc4NDQ2NDksImV4cCI6MjA3MzQyMDY0OX0.u6ZBX-d_CTNlA94OM7h2JerNpmhuHZxYSXmj0OxRhRI';
 const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
@@ -58,10 +58,6 @@ async function loadAdminStats() {
         document.getElementById('adminStats').innerHTML = '<p>Error loading statistics</p>';
     }
 }
-
-// Load results - FIXED
-// admin-dashboard.js - FIXED for multi-position results
-// ... (keep the existing code but replace the loadResults function)
 
 // Load results for multiple positions - FIXED
 async function loadResults() {
@@ -413,4 +409,4 @@ async function showVotedVoters() {
             </table>
         </div>
     `;
-            }
+    }
